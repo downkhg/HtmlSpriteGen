@@ -58,9 +58,14 @@
               <div style="display:flex; flex-direction:column; gap:12px;" id="stateRowsContainer">
                 <!-- States will be populated dynamically -->
               </div>
-              <button class="btn" id="addStateBtn" style="margin-top: 12px; width: 100%;">
-                + 상태(Action) 추가
-              </button>
+              <div style="display:flex; gap: 8px; margin-top: 12px;">
+                <button class="btn" id="addStateBtn" style="flex: 1;">
+                  + 상태 추가
+                </button>
+                <button class="btn" id="removeStateBtn" style="flex: 1; color: var(--color-error); border-color: rgba(239,68,68,0.2);">
+                  - 상태 삭제
+                </button>
+              </div>
             </div>
 
             <div class="sidebar-section">
@@ -368,7 +373,7 @@
   <!-- Toast Alerts -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- Application Scripts Loaded Sequentially to support file:// protocol without CORS blocks -->
+  <!-- Application Scripts Loaded Sequentially using standard relative paths -->
   <script src="Data/gemini.js"></script>
   <script src="js/gemini.js"></script>
   <script src="js/imageProcessor.js"></script>

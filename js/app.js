@@ -87,16 +87,42 @@ function renderStatesConfigList() {
     const row = document.createElement('div');
     row.className = 'state-config-item';
     
-    // Status color badge
-    const statusClass = item.status === 'stable' ? 'stable' : 'experimental';
-    const statusText = item.status === 'stable' ? 'Stb' : 'Exp';
+    // Style inline to support file:// and look beautiful without specific layout CSS dependencies
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '1fr 60px 60px';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    row.style.padding = '6px 10px';
+    row.style.borderRadius = 'var(--border-radius-sm)';
+    row.style.cursor = 'pointer';
+    row.style.transition = 'var(--transition-smooth)';
+    
+    // Highlight if selected as active state
+    const isActive = item.name === state.activeStateName;
+    if (isActive) {
+      row.style.border = '1px solid var(--accent)';
+      row.style.background = 'rgba(168, 85, 247, 0.08)';
+      row.style.boxShadow = '0 0 8px rgba(168, 85, 247, 0.15)';
+    } else {
+      row.style.border = '1px solid transparent';
+      row.style.background = 'transparent';
+    }
     
     row.innerHTML = `
       <input type="text" class="control-input state-name-input" style="padding:6px;" value="${item.name}" placeholder="상태명" data-idx="${index}">
       <input type="number" class="control-input state-frames-input" style="padding:6px; text-align:center;" value="${item.frames}" min="1" max="12" title="프레임 수" data-idx="${index}">
       <input type="number" class="control-input state-fps-input" style="padding:6px; text-align:center;" value="${item.fps}" min="1" max="30" title="기본 FPS" data-idx="${index}">
-      <button class="btn remove-state-btn" style="padding:6px; color:var(--color-error); border-color:rgba(239,68,68,0.2);" data-idx="${index}">&times;</button>
     `;
+
+    // Click on row to select as active state
+    row.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') {
+        state.activeStateName = item.name;
+        renderStatesConfigList();
+        refreshCurationTabUI();
+      }
+    });
+
     container.appendChild(row);
   });
 
@@ -104,7 +130,23 @@ function renderStatesConfigList() {
   container.querySelectorAll('.state-name-input').forEach(input => {
     input.addEventListener('change', (e) => {
       const idx = parseInt(e.target.dataset.idx);
-      state.states[idx].name = e.target.value.trim();
+      const oldName = state.states[idx].name;
+      const newName = e.target.value.trim();
+      
+      // Update state and activeStateName if it was renamed
+      state.states[idx].name = newName;
+      if (state.activeStateName === oldName) {
+        state.activeStateName = newName;
+      }
+      
+      // Update map keys if frames exist
+      if (state.stateFramesMap.has(oldName)) {
+        const frames = state.stateFramesMap.get(oldName);
+        state.stateFramesMap.delete(oldName);
+        state.stateFramesMap.set(newName, frames);
+      }
+      
+      refreshCurationTabUI();
     });
   });
 
@@ -119,18 +161,7 @@ function renderStatesConfigList() {
     input.addEventListener('change', (e) => {
       const idx = parseInt(e.target.dataset.idx);
       state.states[idx].fps = parseInt(e.target.value) || 6;
-    });
-  });
-
-  container.querySelectorAll('.remove-state-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.target.closest('button').dataset.idx);
-      if (state.states.length <= 1) {
-        showToast('최소 하나의 액션 상태가 필요합니다.', 'error');
-        return;
-      }
-      state.states.splice(idx, 1);
-      renderStatesConfigList();
+      refreshCurationTabUI();
     });
   });
 }
@@ -188,6 +219,28 @@ function initUI() {
       status: isStable ? 'stable' : 'experimental'
     });
     renderStatesConfigList();
+  });
+
+  // Remove state button (selected/active state)
+  document.getElementById('removeStateBtn').addEventListener('click', () => {
+    if (state.states.length <= 1) {
+      showToast('최소 하나의 액션 상태가 필요합니다.', 'error');
+      return;
+    }
+
+    const activeIdx = state.states.findIndex(s => s.name === state.activeStateName);
+    if (activeIdx !== -1) {
+      const deletedName = state.activeStateName;
+      state.states.splice(activeIdx, 1);
+      state.stateFramesMap.delete(deletedName);
+      
+      // Select the first remaining state as active
+      state.activeStateName = state.states[0].name;
+      
+      renderStatesConfigList();
+      refreshCurationTabUI();
+      showToast(`'${deletedName}' 액션이 목록에서 삭제되었습니다.`);
+    }
   });
 
   // --- 2. API Key Dialog overlay ---
@@ -917,11 +970,37 @@ function refreshCurationTabUI() {
     chip.innerHTML = `
       <span>${s.name}</span>
       <span class="state-status-badge ${statusClass}">${statusText}</span>
+      <span class="delete-state-chip" style="margin-left: 8px; cursor: pointer; color: var(--color-error); font-weight: bold; font-size: 14px; padding: 0 4px;" title="액션 삭제">&times;</span>
     `;
     chip.addEventListener('click', () => {
       state.activeStateName = s.name;
       refreshCurationTabUI();
     });
+
+    // Bind delete action
+    chip.querySelector('.delete-state-chip').addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent selecting the state chip when clicking the delete icon
+      if (state.states.length <= 1) {
+        showToast('최소 하나의 액션 상태가 필요합니다.', 'error');
+        return;
+      }
+      
+      const stateIndex = state.states.findIndex(item => item.name === s.name);
+      if (stateIndex !== -1) {
+        state.states.splice(stateIndex, 1);
+        state.stateFramesMap.delete(s.name);
+        
+        // Reset active state if we deleted the current one
+        if (state.activeStateName === s.name) {
+          state.activeStateName = state.states[0].name;
+        }
+        
+        refreshCurationTabUI();
+        renderStatesConfigList();
+        showToast(`'${s.name}' 액션이 목록에서 삭제되었습니다.`);
+      }
+    });
+
     chipsContainer.appendChild(chip);
   });
 
