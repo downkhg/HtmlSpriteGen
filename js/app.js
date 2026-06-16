@@ -32,6 +32,7 @@ const state = {
 
 // Initialize Application on load
 document.addEventListener('DOMContentLoaded', () => {
+  loadProjectSettings();
   initUI();
   updateApiKeyStatus();
   renderStatesConfigList();
@@ -42,6 +43,131 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set default active state
   state.activeStateName = state.states[0].name;
 });
+
+/**
+ * Helper to load images using promises for clean async/await try-catch error handling
+ */
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('이미지 로딩 및 디코딩에 실패했습니다.'));
+    img.src = src;
+  });
+}
+
+let debugWindowCount = 0;
+
+/**
+ * Creates and displays a stackable, draggable floating debug window alert
+ * containing the generated image with a download button.
+ */
+function createDebugWindow(base64Data, title = '생성된 이미지 디버그') {
+  debugWindowCount++;
+  
+  const debugWin = document.createElement('div');
+  debugWin.className = 'debug-window';
+  
+  // Staggered positioning
+  const offset = (debugWindowCount % 6) * 30;
+  debugWin.style.position = 'fixed';
+  debugWin.style.top = `calc(15% + ${offset}px)`;
+  debugWin.style.left = `calc(20% + ${offset}px)`;
+  debugWin.style.width = '420px';
+  debugWin.style.background = 'rgba(15, 15, 25, 0.98)';
+  debugWin.style.border = '2px solid var(--accent)';
+  debugWin.style.borderRadius = '12px';
+  debugWin.style.boxShadow = '0 20px 40px rgba(0,0,0,0.6)';
+  debugWin.style.zIndex = 10000 + debugWindowCount;
+  debugWin.style.display = 'flex';
+  debugWin.style.flexDirection = 'column';
+  debugWin.style.overflow = 'hidden';
+  debugWin.style.fontFamily = 'var(--font-main, sans-serif)';
+  debugWin.style.color = '#fff';
+  
+  const header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.padding = '10px 16px';
+  header.style.background = 'linear-gradient(90deg, rgba(168, 85, 247, 0.25), rgba(168, 85, 247, 0.05))';
+  header.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+  header.style.cursor = 'move';
+  header.style.userSelect = 'none';
+  
+  header.innerHTML = `
+    <span style="font-size: 13px; font-weight: 600; color: #e9d5ff; letter-spacing: 0.5px;">${title} (#${debugWindowCount})</span>
+    <button class="debug-close-btn" style="background: none; border: none; color: #9ca3af; font-size: 20px; cursor: pointer; padding: 0 4px; transition: color 0.2s;">&times;</button>
+  `;
+  
+  const content = document.createElement('div');
+  content.style.padding = '16px';
+  content.style.display = 'flex';
+  content.style.flexDirection = 'column';
+  content.style.gap = '12px';
+  content.style.alignItems = 'center';
+  
+  const imgUrl = `data:image/png;base64,${base64Data}`;
+  
+  content.innerHTML = `
+    <div style="width: 100%; max-height: 280px; overflow: auto; background: #09090b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; display: flex; justify-content: center; align-items: center; padding: 8px; box-sizing: border-box;">
+      <img src="${imgUrl}" style="max-width: 100%; height: auto; display: block; image-rendering: pixelated;" />
+    </div>
+    <div style="display: flex; gap: 10px; width: 100%; box-sizing: border-box;">
+      <a href="${imgUrl}" download="${title.replace(/\s+/g, '_')}_${debugWindowCount}.png" class="btn btn-primary" style="flex: 1; text-align: center; font-size: 12px; padding: 10px; text-decoration: none; display: inline-block; line-height: 1.2;">
+        💾 이미지 다운로드
+      </a>
+      <button class="btn debug-close-btn-action" style="flex: 1; font-size: 12px; padding: 10px;">닫기</button>
+    </div>
+  `;
+  
+  // Close hover color transition
+  const closeX = header.querySelector('.debug-close-btn');
+  closeX.addEventListener('mouseover', () => closeX.style.color = '#ef4444');
+  closeX.addEventListener('mouseout', () => closeX.style.color = '#9ca3af');
+  
+  debugWin.appendChild(header);
+  debugWin.appendChild(content);
+  
+  // Dragging logic
+  let isDragging = false;
+  let startX, startY;
+  
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    isDragging = true;
+    startX = e.clientX - debugWin.offsetLeft;
+    startY = e.clientY - debugWin.offsetTop;
+    // Bring clicked window to the very front
+    debugWin.style.zIndex = 10100 + debugWindowCount;
+  });
+  
+  const onMouseMove = (e) => {
+    if (!isDragging) return;
+    debugWin.style.left = `${e.clientX - startX}px`;
+    debugWin.style.top = `${e.clientY - startY}px`;
+  };
+  
+  const onMouseUp = () => {
+    isDragging = false;
+  };
+  
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+  
+  const closeWin = () => {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    if (debugWin.parentNode) {
+      document.body.removeChild(debugWin);
+    }
+  };
+  
+  header.querySelector('.debug-close-btn').addEventListener('click', closeWin);
+  content.querySelector('.debug-close-btn-action').addEventListener('click', closeWin);
+  
+  document.body.appendChild(debugWin);
+}
 
 /**
  * Display toast notification
@@ -59,6 +185,74 @@ function showToast(message, type = 'success') {
       container.removeChild(toast);
     }, 300);
   }, 3000);
+}
+
+const CONFIG_KEYS = {
+  PROJECT_SETTINGS: 'antigravity_project_settings'
+};
+
+/**
+ * Save current project settings to localStorage
+ */
+function saveProjectSettings() {
+  const projectSettings = {
+    characterId: document.getElementById('charId').value.trim(),
+    states: state.states,
+    chromaColor: document.getElementById('chromaColor').value,
+    tolerance: document.getElementById('toleranceRange').value,
+    softEdge: document.getElementById('softEdgeRange').value,
+    cclNoise: document.getElementById('cclNoiseRange').value,
+    maxAtlasSize: document.getElementById('maxAtlasSize').value,
+    atlasPadding: document.getElementById('atlasPadding').value,
+    potCheck: document.getElementById('potCheck').checked
+  };
+  localStorage.setItem(CONFIG_KEYS.PROJECT_SETTINGS, JSON.stringify(projectSettings));
+}
+
+/**
+ * Load project settings from localStorage
+ */
+function loadProjectSettings() {
+  const data = localStorage.getItem(CONFIG_KEYS.PROJECT_SETTINGS);
+  if (!data) return false;
+  try {
+    const config = JSON.parse(data);
+    if (config.characterId) {
+      document.getElementById('charId').value = config.characterId;
+      state.characterId = config.characterId;
+    }
+    if (Array.isArray(config.states)) {
+      state.states = config.states;
+    }
+    if (config.chromaColor) {
+      document.getElementById('chromaColor').value = config.chromaColor;
+    }
+    if (config.tolerance) {
+      document.getElementById('toleranceRange').value = config.tolerance;
+      document.getElementById('toleranceVal').innerText = config.tolerance;
+    }
+    if (config.softEdge) {
+      document.getElementById('softEdgeRange').value = config.softEdge;
+      document.getElementById('softEdgeVal').innerText = config.softEdge;
+    }
+    if (config.cclNoise) {
+      document.getElementById('cclNoiseRange').value = config.cclNoise;
+      document.getElementById('cclNoiseVal').innerText = config.cclNoise;
+    }
+    if (config.maxAtlasSize) {
+      document.getElementById('maxAtlasSize').value = config.maxAtlasSize;
+    }
+    if (config.atlasPadding) {
+      document.getElementById('atlasPadding').value = config.atlasPadding;
+    }
+    if (config.potCheck !== undefined) {
+      document.getElementById('potCheck').checked = config.potCheck;
+    }
+    return true;
+  } catch (e) {
+    console.error('Error loading project settings:', e);
+    return false;
+  }
 }
 
 /**
@@ -147,6 +341,7 @@ function renderStatesConfigList() {
       }
       
       refreshCurationTabUI();
+      saveProjectSettings();
     });
   });
 
@@ -154,6 +349,7 @@ function renderStatesConfigList() {
     input.addEventListener('change', (e) => {
       const idx = parseInt(e.target.dataset.idx);
       state.states[idx].frames = parseInt(e.target.value) || 4;
+      saveProjectSettings();
     });
   });
 
@@ -162,6 +358,7 @@ function renderStatesConfigList() {
       const idx = parseInt(e.target.dataset.idx);
       state.states[idx].fps = parseInt(e.target.value) || 6;
       refreshCurationTabUI();
+      saveProjectSettings();
     });
   });
 }
@@ -170,6 +367,69 @@ function renderStatesConfigList() {
  * Initialize event listeners and UI bindings
  */
 function initUI() {
+  // --- 1. Tab Router switching ---
+  // --- 0. Project Settings auto-save and Import/Export ---
+  document.getElementById('charId').addEventListener('input', () => {
+    state.characterId = document.getElementById('charId').value.trim() || 'hero_pixel';
+    saveProjectSettings();
+  });
+
+  // Save settings when atlas packing options change
+  document.getElementById('maxAtlasSize').addEventListener('change', saveProjectSettings);
+  document.getElementById('atlasPadding').addEventListener('input', saveProjectSettings);
+  document.getElementById('potCheck').addEventListener('change', saveProjectSettings);
+  
+  // Export project settings
+  document.getElementById('exportProjConfigBtn').addEventListener('click', () => {
+    const projectSettings = {
+      characterId: document.getElementById('charId').value.trim(),
+      states: state.states,
+      chromaColor: document.getElementById('chromaColor').value,
+      tolerance: document.getElementById('toleranceRange').value,
+      softEdge: document.getElementById('softEdgeRange').value,
+      cclNoise: document.getElementById('cclNoiseRange').value,
+      maxAtlasSize: document.getElementById('maxAtlasSize').value,
+      atlasPadding: document.getElementById('atlasPadding').value,
+      potCheck: document.getElementById('potCheck').checked
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectSettings, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `${projectSettings.characterId}_settings.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showToast('프로젝트 설정이 파일로 내보내졌습니다.');
+  });
+
+  // Import project settings
+  const importInput = document.getElementById('importProjConfigFileInput');
+  document.getElementById('importProjConfigBtn').addEventListener('click', () => {
+    importInput.click();
+  });
+
+  importInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        localStorage.setItem(CONFIG_KEYS.PROJECT_SETTINGS, event.target.result);
+        if (loadProjectSettings()) {
+          renderStatesConfigList();
+          refreshCurationTabUI();
+          showToast('프로젝트 설정을 파일에서 성공적으로 가져왔습니다!');
+        } else {
+          showToast('유효하지 않은 프로젝트 설정 파일입니다.', 'error');
+        }
+      } catch (err) {
+        showToast('설정 파일 가져오기 실패: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset file input
+  });
+
   // --- 1. Tab Router switching ---
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -219,6 +479,7 @@ function initUI() {
       status: isStable ? 'stable' : 'experimental'
     });
     renderStatesConfigList();
+    saveProjectSettings();
   });
 
   // Remove state button (selected/active state)
@@ -239,6 +500,7 @@ function initUI() {
       
       renderStatesConfigList();
       refreshCurationTabUI();
+      saveProjectSettings();
       showToast(`'${deletedName}' 액션이 목록에서 삭제되었습니다.`);
     }
   });
@@ -376,22 +638,19 @@ All sprites MUST be aligned horizontally in rows against a solid green screen (#
     try {
       const base64Data = await generateSpriteSheet(key, getModelName(), fullPrompt);
       
-      // Load generated image into HTMLImageElement
-      const img = new Image();
-      img.onload = () => {
-        state.baseImage = img;
-        runImagePipeline();
-        loader.classList.remove('active');
-        generateBtn.disabled = false;
-        showToast('스프라이트 시트가 성공적으로 생성 및 분할되었습니다!');
-        
-        // Auto navigate to curation tab
-        document.querySelector('[data-tab="curation-tab"]').click();
-      };
-      img.onerror = () => {
-        throw new Error('생성된 이미지 디코딩 및 로딩에 실패했습니다.');
-      };
-      img.src = `data:image/png;base64,${base64Data}`;
+      // Show debugging modal window with image and download options
+      createDebugWindow(base64Data, 'AI 생성 스프라이트 시트 원본');
+      
+      // Load generated image using promise helper
+      const img = await loadImage(`data:image/png;base64,${base64Data}`);
+      state.baseImage = img;
+      runImagePipeline();
+      loader.classList.remove('active');
+      generateBtn.disabled = false;
+      showToast('스프라이트 시트가 성공적으로 생성 및 분할되었습니다!');
+      
+      // Auto navigate to curation tab
+      document.querySelector('[data-tab="curation-tab"]').click();
     } catch (error) {
       loader.classList.remove('active');
       generateBtn.disabled = false;
@@ -435,6 +694,7 @@ All sprites MUST be aligned horizontally in rows against a solid green screen (#
       runImagePipeline(false); // run pipeline without changing manual curation offsets if possible
       state.curator.renderCurator();
     }
+    saveProjectSettings();
   };
 
   toleranceRange.addEventListener('input', onFilterParamsChanged);
@@ -450,6 +710,7 @@ All sprites MUST be aligned horizontally in rows against a solid green screen (#
       runImagePipeline(false);
       state.curator.renderCurator();
     }
+    saveProjectSettings();
   });
 
   // Color picker (Eyedropper API if available)
@@ -663,21 +924,21 @@ All sprites MUST be aligned horizontally in rows against a solid green screen (#
       // 3. Call inpaint API
       const resultBase64 = await inpaintSprite(key, getModelName(), originalBase64, maskBase64, prompt);
       
-      // 4. Load output
-      const img = new Image();
-      img.onload = () => {
-        state.baseImage = img;
-        
-        // Reset mask canvas
-        state.maskCtx.clearRect(0, 0, state.maskCanvas.width, state.maskCanvas.height);
-        state.isDrawingMask = false;
-        document.getElementById('inpaintingToolbar').classList.remove('active');
-        
-        runImagePipeline();
-        loader.classList.remove('active');
-        showToast('인페인팅 수정 작업이 반영되었습니다!');
-      };
-      img.src = `data:image/png;base64,${resultBase64}`;
+      // Show debugging modal window with image and download options
+      createDebugWindow(resultBase64, '인페인팅 수정 이미지 원본');
+      
+      // 4. Load output using promise helper
+      const img = await loadImage(`data:image/png;base64,${resultBase64}`);
+      state.baseImage = img;
+      
+      // Reset mask canvas
+      state.maskCtx.clearRect(0, 0, state.maskCanvas.width, state.maskCanvas.height);
+      state.isDrawingMask = false;
+      document.getElementById('inpaintingToolbar').classList.remove('active');
+      
+      runImagePipeline();
+      loader.classList.remove('active');
+      showToast('인페인팅 수정 작업이 반영되었습니다!');
     } catch (err) {
       loader.classList.remove('active');
       showToast(`인페인팅 실패: ${err.message}`, 'error');

@@ -51,6 +51,11 @@
                 <label class="control-label" for="charId">캐릭터 식별 ID</label>
                 <input type="text" id="charId" class="control-input" value="hero_pixel">
               </div>
+              <div style="display:flex; gap: 8px; margin-top: 8px;">
+                <button class="btn" id="exportProjConfigBtn" style="flex: 1; font-size: 11px; padding: 6px; border-color: rgba(168, 85, 247, 0.3);">설정 내보내기</button>
+                <button class="btn" id="importProjConfigBtn" style="flex: 1; font-size: 11px; padding: 6px; border-color: rgba(168, 85, 247, 0.3);">설정 가져오기</button>
+                <input type="file" id="importProjConfigFileInput" style="display: none;" accept=".json">
+              </div>
             </div>
 
             <div class="sidebar-section">
