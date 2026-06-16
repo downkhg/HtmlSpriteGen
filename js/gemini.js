@@ -64,14 +64,14 @@ window.geminiConfig = {
     if (!apiKey) {
       throw new Error('Gemini API Key가 설정되지 않았습니다.');
     }
-    const modelName = model || this.getModelName();
-    const apiVersion = this.getApiVersion();
-    const thinkingLevel = this.getThinkingLevel();
+    const modelName = model || window.geminiAPI.getModelName();
+    const apiVersion = window.geminiAPI.getApiVersion();
+    const thinkingLevel = window.geminiAPI.getThinkingLevel();
     const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:generateContent?key=${apiKey}`;
     const requestBody = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        responseModalities: ["IMAGE"],
+        responseModalities: ["TEXT", "IMAGE"],
         thinking_config: {
           thinking_level: thinkingLevel
         }
@@ -110,9 +110,9 @@ window.geminiConfig = {
     if (!apiKey) {
       throw new Error('Gemini API Key가 설정되지 않았습니다.');
     }
-    const modelName = model || this.getModelName();
-    const apiVersion = this.getApiVersion();
-    const thinkingLevel = this.getThinkingLevel();
+    const modelName = model || window.geminiAPI.getModelName();
+    const apiVersion = window.geminiAPI.getApiVersion();
+    const thinkingLevel = window.geminiAPI.getThinkingLevel();
     const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:generateContent?key=${apiKey}`;
     const requestBody = {
       contents: [{
@@ -123,7 +123,7 @@ window.geminiConfig = {
         ]
       }],
       generationConfig: {
-        responseModalities: ["IMAGE"],
+        responseModalities: ["TEXT", "IMAGE"],
         thinking_config: {
           thinking_level: thinkingLevel
         }

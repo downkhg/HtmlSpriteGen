@@ -60,9 +60,9 @@ let debugWindowCount = 0;
 
 /**
  * Creates and displays a stackable, draggable floating debug window alert
- * containing the generated image with a download button.
+ * containing the generated image with a download button and the prompt used.
  */
-function createDebugWindow(base64Data, title = '생성된 이미지 디버그') {
+function createDebugWindow(base64Data, title = '생성된 이미지 디버그', promptText = '') {
   debugWindowCount++;
   
   const debugWin = document.createElement('div');
@@ -73,7 +73,7 @@ function createDebugWindow(base64Data, title = '생성된 이미지 디버그') 
   debugWin.style.position = 'fixed';
   debugWin.style.top = `calc(15% + ${offset}px)`;
   debugWin.style.left = `calc(20% + ${offset}px)`;
-  debugWin.style.width = '420px';
+  debugWin.style.width = '440px';
   debugWin.style.background = 'rgba(15, 15, 25, 0.98)';
   debugWin.style.border = '2px solid var(--accent)';
   debugWin.style.borderRadius = '12px';
@@ -109,10 +109,21 @@ function createDebugWindow(base64Data, title = '생성된 이미지 디버그') 
   
   const imgUrl = `data:image/png;base64,${base64Data}`;
   
+  let promptSection = '';
+  if (promptText) {
+    promptSection = `
+    <div style="width: 100%; box-sizing: border-box; text-align: left;">
+      <label style="font-size: 11px; color: #a78bfa; font-weight: 600; display: block; margin-bottom: 4px;">사용한 전체 생성 프롬프트:</label>
+      <textarea style="width: 100%; height: 65px; font-family: monospace; font-size: 11px; background: #09090b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: #cbd5e1; padding: 6px; resize: vertical; box-sizing: border-box;" readonly>${promptText}</textarea>
+    </div>
+    `;
+  }
+  
   content.innerHTML = `
     <div style="width: 100%; max-height: 280px; overflow: auto; background: #09090b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; display: flex; justify-content: center; align-items: center; padding: 8px; box-sizing: border-box;">
       <img src="${imgUrl}" style="max-width: 100%; height: auto; display: block; image-rendering: pixelated;" />
     </div>
+    ${promptSection}
     <div style="display: flex; gap: 10px; width: 100%; box-sizing: border-box;">
       <a href="${imgUrl}" download="${title.replace(/\s+/g, '_')}_${debugWindowCount}.png" class="btn btn-primary" style="flex: 1; text-align: center; font-size: 12px; padding: 10px; text-decoration: none; display: inline-block; line-height: 1.2;">
         💾 이미지 다운로드
@@ -198,6 +209,7 @@ function saveProjectSettings() {
   const projectSettings = {
     characterId: document.getElementById('charId').value.trim(),
     states: state.states,
+    prompt: document.getElementById('promptInput').value,
     chromaColor: document.getElementById('chromaColor').value,
     tolerance: document.getElementById('toleranceRange').value,
     softEdge: document.getElementById('softEdgeRange').value,
@@ -223,6 +235,9 @@ function loadProjectSettings() {
     }
     if (Array.isArray(config.states)) {
       state.states = config.states;
+    }
+    if (config.prompt !== undefined) {
+      document.getElementById('promptInput').value = config.prompt;
     }
     if (config.chromaColor) {
       document.getElementById('chromaColor').value = config.chromaColor;
@@ -374,6 +389,9 @@ function initUI() {
     saveProjectSettings();
   });
 
+  // Save when prompt changes
+  document.getElementById('promptInput').addEventListener('input', saveProjectSettings);
+
   // Save settings when atlas packing options change
   document.getElementById('maxAtlasSize').addEventListener('change', saveProjectSettings);
   document.getElementById('atlasPadding').addEventListener('input', saveProjectSettings);
@@ -384,6 +402,7 @@ function initUI() {
     const projectSettings = {
       characterId: document.getElementById('charId').value.trim(),
       states: state.states,
+      prompt: document.getElementById('promptInput').value,
       chromaColor: document.getElementById('chromaColor').value,
       tolerance: document.getElementById('toleranceRange').value,
       softEdge: document.getElementById('softEdgeRange').value,
@@ -639,7 +658,7 @@ All sprites MUST be aligned horizontally in rows against a solid green screen (#
       const base64Data = await generateSpriteSheet(key, getModelName(), fullPrompt);
       
       // Show debugging modal window with image and download options
-      createDebugWindow(base64Data, 'AI 생성 스프라이트 시트 원본');
+      createDebugWindow(base64Data, 'AI 생성 스프라이트 시트 원본', fullPrompt);
       
       // Load generated image using promise helper
       const img = await loadImage(`data:image/png;base64,${base64Data}`);
@@ -925,7 +944,7 @@ All sprites MUST be aligned horizontally in rows against a solid green screen (#
       const resultBase64 = await inpaintSprite(key, getModelName(), originalBase64, maskBase64, prompt);
       
       // Show debugging modal window with image and download options
-      createDebugWindow(resultBase64, '인페인팅 수정 이미지 원본');
+      createDebugWindow(resultBase64, '인페인팅 수정 이미지 원본', prompt);
       
       // 4. Load output using promise helper
       const img = await loadImage(`data:image/png;base64,${resultBase64}`);
