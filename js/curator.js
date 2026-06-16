@@ -1,6 +1,6 @@
 /* js/curator.js */
 
-export class SpriteCurator {
+window.SpriteCurator = class SpriteCurator {
   constructor(curatorCanvasId, playerCanvasId, onCurationChanged) {
     this.canvas = document.getElementById(curatorCanvasId);
     this.ctx = this.canvas.getContext('2d');
@@ -152,7 +152,7 @@ export class SpriteCurator {
     this.canvas.addEventListener('mouseup', stopDragging);
     this.canvas.addEventListener('mouseleave', stopDragging);
     
-    // Support Touch Events as well
+    // Support Touch Events
     this.canvas.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       const frame = this.getSelectedFrame();
@@ -196,9 +196,6 @@ export class SpriteCurator {
     this.canvas.addEventListener('touchend', stopDragging);
   }
 
-  /**
-   * Render checkerboard pattern or solid colors manually inside the canvas
-   */
   drawBackground(ctx, w, h) {
     ctx.save();
     if (this.bgType === 'white') {
@@ -224,13 +221,9 @@ export class SpriteCurator {
     ctx.restore();
   }
 
-  /**
-   * Render the selected frame in the main curator viewport
-   */
   renderCurator() {
     const frame = this.getSelectedFrame();
     if (!frame || !this.sourceCanvas) {
-      // Clear canvas if no frame selected
       this.canvas.width = 300;
       this.canvas.height = 300;
       this.drawBackground(this.ctx, 300, 300);
@@ -241,7 +234,6 @@ export class SpriteCurator {
       return;
     }
 
-    // Set canvas size dynamically based on frame boundary + padding, multiplied by zoom
     const padding = 40;
     const viewW = (frame.sourceW + padding * 2) * this.zoom;
     const viewH = (frame.sourceH + padding * 2) * this.zoom;
@@ -249,33 +241,27 @@ export class SpriteCurator {
     this.canvas.width = viewW;
     this.canvas.height = viewH;
     
-    // Draw background
     this.drawBackground(this.ctx, viewW, viewH);
 
     const ctx = this.ctx;
     ctx.save();
     
-    // Center point in viewport coordinates
     const cx = viewW / 2;
     const cy = viewH / 2;
     
-    // 1. Draw boundary cell guidelines (where the original frame was)
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.strokeRect(cx - (frame.sourceW / 2) * this.zoom, cy - (frame.sourceH / 2) * this.zoom, frame.sourceW * this.zoom, frame.sourceH * this.zoom);
     
-    // 2. Apply viewport scaling
     ctx.translate(cx, cy);
     ctx.scale(this.zoom, this.zoom);
     
-    // 3. Apply frame transformations (Nudge & Rotate & Scale)
     ctx.translate(frame.nudgeX, frame.nudgeY);
     ctx.scale(frame.scale, frame.scale);
     ctx.rotate((frame.rotate * Math.PI) / 180);
 
-    // 4. Draw image portion (Centered on pivot)
-    ctx.imageSmoothingEnabled = false; // Preserve retro/pixel art crispness
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       this.sourceCanvas,
       frame.sourceX, frame.sourceY, frame.sourceW, frame.sourceH,
@@ -284,30 +270,25 @@ export class SpriteCurator {
     
     ctx.restore();
 
-    // 5. Draw center pivot crosshair guidelines on top (non-transformed center)
     ctx.save();
-    ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)'; // Neon purple line
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
     ctx.lineWidth = 1.5;
     
-    // Horizontal center line
     ctx.beginPath();
     ctx.moveTo(cx - 10, cy);
     ctx.lineTo(cx + 10, cy);
     ctx.stroke();
     
-    // Vertical center line
     ctx.beginPath();
     ctx.moveTo(cx, cy - 10);
     ctx.lineTo(cx, cy + 10);
     ctx.stroke();
     
-    // Draw active bounding box wrapper indicators
     if (frame.rejected) {
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)'; // Red for rejected
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
       ctx.lineWidth = 2;
       ctx.strokeRect(cx - (frame.sourceW / 2) * this.zoom, cy - (frame.sourceH / 2) * this.zoom, frame.sourceW * this.zoom, frame.sourceH * this.zoom);
       
-      // Draw big Red 'X'
       ctx.beginPath();
       ctx.moveTo(cx - 20, cy - 20);
       ctx.lineTo(cx + 20, cy + 20);
@@ -317,10 +298,9 @@ export class SpriteCurator {
       ctx.lineWidth = 4;
       ctx.stroke();
     } else {
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)'; // Purple border for active
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
       ctx.lineWidth = 1.5;
       
-      // Draw nudged border guidelines
       ctx.save();
       ctx.translate(cx, cy);
       ctx.scale(this.zoom, this.zoom);
@@ -336,9 +316,6 @@ export class SpriteCurator {
     ctx.restore();
   }
 
-  /**
-   * Start animation player requestAnimationFrame loop
-   */
   startPlayerLoop() {
     const loop = (timestamp) => {
       this.animatePlayer(timestamp);
@@ -358,15 +335,12 @@ export class SpriteCurator {
     if (elapsed >= interval) {
       this.lastFrameTime = timestamp - (elapsed % interval);
       
-      // Find the next active frame (skip rejected ones)
       let attempts = 0;
       const total = this.currentStateFrames.length;
       
       do {
         this.currentPlayIndex = (this.currentPlayIndex + 1) % total;
         attempts++;
-        
-        // If we completed a full loop and all are rejected, stop
         if (attempts >= total) break;
       } while (this.currentStateFrames[this.currentPlayIndex]?.rejected && this.playerLoop);
 
@@ -384,12 +358,10 @@ export class SpriteCurator {
 
     const frame = this.currentStateFrames[this.currentPlayIndex];
     if (!frame || frame.rejected) {
-      // If frame is null or rejected, render empty transparent frame
       this.playerCtx.clearRect(0, 0, this.playerCanvas.width, this.playerCanvas.height);
       return;
     }
 
-    // Set player canvas dimension to frame max bounds
     const maxDim = Math.max(frame.sourceW, frame.sourceH);
     this.playerCanvas.width = maxDim;
     this.playerCanvas.height = maxDim;
@@ -401,7 +373,6 @@ export class SpriteCurator {
     const cx = maxDim / 2;
     const cy = maxDim / 2;
 
-    // Apply exact transformations
     ctx.translate(cx, cy);
     ctx.translate(frame.nudgeX, frame.nudgeY);
     ctx.scale(frame.scale, frame.scale);

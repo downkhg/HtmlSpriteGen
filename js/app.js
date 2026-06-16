@@ -1,10 +1,10 @@
 /* js/app.js */
 
-import { getApiKey, getModelName, getThinkingLevel, getApiVersion, saveConfigToLocal, generateConfigFileContent, testApiKey, generateSpriteSheet, inpaintSprite } from './gemini.js';
-import { applyChromaKey, extractBoundingBoxes, groupBoxesIntoStates } from './imageProcessor.js';
-import { SpriteCurator } from './curator.js';
-import { packSpriteSheet, bakeAtlasCanvas } from './packer.js';
-import { downloadZip } from './zipService.js';
+const { getApiKey, getModelName, getThinkingLevel, getApiVersion, saveConfigToLocal, generateConfigFileContent, testApiKey, generateSpriteSheet, inpaintSprite } = window.geminiAPI;
+const { applyChromaKey, extractBoundingBoxes, groupBoxesIntoStates } = window.imageProcessor;
+const { packSpriteSheet, bakeAtlasCanvas } = window.packer;
+const { downloadZip } = window.zipService;
+const SpriteCurator = window.SpriteCurator;
 
 // Global Application State
 const state = {
